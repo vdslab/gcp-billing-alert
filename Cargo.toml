@@ -1,0 +1,38 @@
+[package]
+name = "gcp-billing-alert"
+version = "0.1.0"
+edition = "2024"
+description = "Google Cloud billing alert application that posts to Discord"
+
+[dependencies]
+# Google Cloud and BigQuery
+gcp-bigquery-client = "0.17.0"  # Using an older version to avoid dependency conflicts
+google-authz = "1.0.0-alpha.5"
+
+# HTTP client and JSON
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Environment and configuration
+dotenv = "0.15.0"
+config = "0.13.1"
+
+# Logging and error handling
+log = "0.4"
+env_logger = "0.10.0"
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.28", features = ["full"] }
+
+# Date and time
+chrono = "0.4"
+
+# Pin hyper_rustls to avoid version conflicts
+hyper-rustls = "0.24.0"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
