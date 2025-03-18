@@ -1,6 +1,6 @@
 # GCP Billing Alert
 
-A Rust application that retrieves Google Cloud billing information from BigQuery and posts it to Discord. The application is designed to be deployed to Google Cloud Run and scheduled with Cloud Scheduler.
+A Rust application that retrieves Google Cloud billing information from BigQuery and posts it to Discord. The application is designed to be deployed to Google Cloud Run Jobs and scheduled with Cloud Scheduler.
 
 ## Features
 
@@ -9,7 +9,7 @@ A Rust application that retrieves Google Cloud billing information from BigQuery
 - Formats data into a Discord embed message
 - Sends data to Discord via webhook
 - Configurable reporting period (default: 30 days)
-- Deployable to Google Cloud Run
+- Deployable to Google Cloud Run Jobs
 - Schedulable with Google Cloud Scheduler
 
 ## Prerequisites
@@ -66,30 +66,20 @@ gcloud auth application-default login
 
 ## Deployment
 
-### Deploying to Google Cloud Run
+### Deploying to Google Cloud Run Jobs
 
-The included `deploy.sh` script automates the deployment process. The script will first try to load environment variables from the `.env` file if it exists, and then use command-line arguments or defaults:
-
-```bash
-./deploy.sh [PROJECT_ID] [REGION] [SCHEDULE] [DISCORD_WEBHOOK_URL]
-```
-
-Parameters (all optional if defined in `.env`):
-
-- `PROJECT_ID`: Your Google Cloud project ID (defaults to value from `.env` or gcloud config)
-- `REGION`: Google Cloud region (default: asia-northeast1)
-- `SCHEDULE`: Cron schedule for Cloud Scheduler (default: "0 9 \* \* \*", which is 9:00 AM daily)
-- `DISCORD_WEBHOOK_URL`: Your Discord webhook URL (defaults to value from `.env`)
-
-Example:
+The included `deploy.sh` script automates the deployment process. The script loads environment variables from the `.env` file if it exists, and then uses default values for any missing variables:
 
 ```bash
-# Using values from .env file
 ./deploy.sh
-
-# Overriding specific values
-./deploy.sh my-project-id asia-northeast1 "0 9 * * *" "https://discord.com/api/webhooks/your-webhook-id/your-webhook-token"
 ```
+
+The script performs two main operations:
+
+1. Builds and pushes the Docker image to Google Container Registry
+2. Updates the Cloud Run job with the new image and configuration
+
+Before running the script, make sure your `.env` file contains the necessary configuration or that you have set the default Google Cloud project using `gcloud config set project your-project-id`.
 
 ### Manual Deployment
 
@@ -101,14 +91,12 @@ If you prefer to deploy manually:
 gcloud builds submit --tag gcr.io/your-project-id/gcp-billing-alert .
 ```
 
-2. Deploy to Cloud Run:
+2. Create or update a Cloud Run job:
 
 ```bash
-gcloud run deploy gcp-billing-alert \
+gcloud run jobs update gcp-billing-alert \
   --image gcr.io/your-project-id/gcp-billing-alert \
-  --platform managed \
   --region asia-northeast1 \
-  --no-allow-unauthenticated \
   --set-env-vars="APP_BIGQUERY__PROJECT_ID=your-project-id" \
   --set-env-vars="APP_BIGQUERY__DATASET=billing_export" \
   --set-env-vars="APP_BIGQUERY__TABLE=your_billing_table" \
@@ -118,7 +106,17 @@ gcloud run deploy gcp-billing-alert \
   --set-env-vars="APP_DISCORD__AVATAR_URL=https://cloud.google.com/images/social-icon-google-cloud-1200-630.png"
 ```
 
-3. Set up Cloud Scheduler (see the `deploy.sh` script for details)
+3. Set up Cloud Scheduler to execute the job:
+
+```bash
+gcloud scheduler jobs create http gcp-billing-alert-scheduler \
+  --schedule="0 9 * * *" \
+  --uri="https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/gcp-billing-alert:run" \
+  --http-method=POST \
+  --oauth-service-account-email=YOUR_SERVICE_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com
+```
+
+Replace `REGION`, `PROJECT_ID`, and `YOUR_SERVICE_ACCOUNT` with your specific values.
 
 ## License
 
