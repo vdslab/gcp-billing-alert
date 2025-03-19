@@ -36,26 +36,28 @@ pub async fn get_billing_data(settings: &BigQuerySettings) -> Result<BillingSumm
           SELECT
             service.description as service_description,
             SUM(cost) as cost,
+            SUM((SELECT IFNULL(SUM(credit.amount), 0) FROM UNNEST(credits) AS credit)) as credits_amount,
+            SUM(cost) + SUM((SELECT IFNULL(SUM(credit.amount), 0) FROM UNNEST(credits) AS credit)) as cost_with_credits,
             currency
           FROM `{}.{}.{}`
           WHERE DATE(usage_start_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL {} DAY)
           GROUP BY service_description, currency
           HAVING cost > 0
-          ORDER BY cost DESC
+          ORDER BY cost_with_credits DESC
         ),
         total AS (
-          SELECT SUM(cost) as total_cost, currency
+          SELECT SUM(cost_with_credits) as total_cost, currency
           FROM billing_data
           GROUP BY currency
         )
         SELECT
           bd.service_description,
-          bd.cost,
+          bd.cost_with_credits as cost,
           bd.currency,
           t.total_cost
         FROM billing_data bd
         JOIN total t ON bd.currency = t.currency
-        ORDER BY bd.cost DESC
+        ORDER BY bd.cost_with_credits DESC
         "#,
         settings.project_id, settings.dataset, settings.table, settings.days_to_report
     );
