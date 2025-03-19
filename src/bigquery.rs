@@ -65,7 +65,7 @@ pub async fn get_billing_data(settings: &BigQuerySettings) -> Result<BillingSumm
     debug!("Executing query: {}", query);
 
     // Create a query request
-    let query_request = QueryRequest::new(format!("{}", query));
+    let query_request = QueryRequest::new(query.to_string());
 
     // Execute the query
     let mut result = client
